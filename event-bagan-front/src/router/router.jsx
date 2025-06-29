@@ -1,4 +1,5 @@
 import React from 'react';
+import { createBrowserRouter } from 'react-router-dom';
 import Root from './Root';
 import ErrorPage from '../pages/ErrorPage/ErrorPage';
 import Home from '../pages/Home/Home';
@@ -8,6 +9,7 @@ import Signup from '../pages/AuthPages/Signup';
 import Events from '../pages/PrivatePages/Events';
 import AddEvent from '../pages/PrivatePages/AddEvent';
 import MyEvents from '../pages/PrivatePages/MyEvents';
+import UpdateEvent from '../pages/PrivatePages/UpdateEvent';
 
 const router = createBrowserRouter([
   {
@@ -21,7 +23,7 @@ const router = createBrowserRouter([
       },
       {
         path: "/events",
-        element: <Events></Events>,
+        element: <PrivateRoute><Events></Events></PrivateRoute>,
       },
       {
         path: "/add-event",
@@ -33,7 +35,7 @@ const router = createBrowserRouter([
       },
       {
         path: `/updateEvent/:id`,
-        element: <PrivateRoute><UpdateBlog></UpdateBlog></PrivateRoute>,
+        element: <PrivateRoute><UpdateEvent></UpdateEvent></PrivateRoute>,
         // loader: ({ params }) => fetch(`https://theguidebb.vercel.app/blog/${params.id}`),
       },
       {
