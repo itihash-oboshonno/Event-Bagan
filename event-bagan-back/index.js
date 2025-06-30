@@ -13,10 +13,27 @@ app.use(
   cors({
     origin: ["http://localhost:5173"],
     credentials: true,
+    optionsSuccessStatus: 200,
   })
 );
 app.use(express.json());
 app.use(cookieParser());
+
+const verifyToken = async (req, res, next) => {
+  const token = req.cookies?.token;
+
+  if (!token) {
+    return res.status(401).send({ message: "Unauthorized Access" });
+  }
+  jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
+    if (err) {
+      console.log(err);
+      return res.status(401).send({ message: "Unauthorized Access" });
+    }
+    req.user = decoded;
+    next();
+  });
+};
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
 const client = new MongoClient(process.env.MONGODB_URI, {
@@ -37,12 +54,22 @@ async function run() {
     // Api
 
     // Signup
-    app.post("/users", async (req, res) => {
+    app.post("/signup", async (req, res) => {
       const { name, email, password, photoUrl } = req.body;
-
+      if (!name || !email || !password) {
+        return res
+          .status(400)
+          .json({ message: "Please fill required fields!" });
+      }
+      if (password.length < 6) {
+        return res
+          .status(400)
+          .json({ message: "Password must be at least 6 characters!" });
+      }
       const user = await users.findOne({ email });
-      if (user)
+      if (user) {
         return res.status(400).json({ message: "Email already in use." });
+      }
 
       const salt = await bcrypt.genSalt(10);
       const hashedPass = await bcrypt.hash(password, salt);
@@ -55,6 +82,18 @@ async function run() {
         joinedEvents: [],
         createdAt: new Date(),
       };
+      if (newUser) {
+        const token = jwt.sign(email, process.env.JWT_SECRET, {
+          expiresIn: "365d",
+        });
+        res
+          .cookie("token", token, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === "production",
+            sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
+          })
+          .send({ success: true });
+      }
       const result = await users.insertOne(newUser);
 
       const response = {
@@ -62,23 +101,71 @@ async function run() {
         name,
         email,
         photoUrl,
+        joinedEvents,
         createdAt: newUser.createdAt,
       };
       res.send(response);
+    });
+
+    // Login
+    app.post("/login", async (req, res) => {
+      const { email, password } = req.body;
+
+      const user = await users.findOne({ email });
+      if (!user)
+        return res.status(400).json({ message: "Invalid credentials" });
+
+      const isPassCorrect = await bcrypt.compare(password, user.password);
+      if (!isPassCorrect)
+        return res.status(400).json({ message: "Invalid credentials" });
+
+      const payload = {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        photoUrl: user.photoUrl,
+        joinedEvents: user.joinedEvents,
+      };
+
+      const token = jwt.sign(user.email, process.env.JWT_SECRET, {
+        expiresIn: "365d",
+      });
+      res
+        .cookie("token", token, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === "production",
+          sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
+        })
+        .send({ success: true, user: payload });
+    });
+
+    // Logout
+    app.get("/logout", async (req, res) => {
+      try {
+        res
+          .clearCookie("token", {
+            maxAge: 0,
+            secure: process.env.NODE_ENV === "production",
+            sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
+          })
+          .send({ success: true });
+      } catch (err) {
+        res.status(500).send(err);
+      }
     });
 
     // Get
 
     // Single UserData
 
-    // AllEvents (have to filter out in a way so that joined events for that user show 'already joined')
-    app.get("/allevents", async (req, res) => {
+    // AllEvents
+    app.get("/allevents", verifyToken, async (req, res) => {
       const result = await allevents.find().sort({ createdAt: -1 }).toArray();
       res.send(result);
     });
 
     // SingleEvent
-    app.get("/allevents/:id", async (req, res) => {
+    app.get("/allevents/:id", verifyToken, async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const result = await allevents.findOne(query);
@@ -86,7 +173,7 @@ async function run() {
     });
 
     // MyEvents (Created)
-    app.get("/myevents/:email", async (req, res) => {
+    app.get("/myevents/:email", verifyToken, async (req, res) => {
       const email = req.params.email;
       const query = { email: email };
       const result = await allevents
@@ -97,7 +184,7 @@ async function run() {
     });
 
     // MyEvents (Joined)
-    app.get("/myjoinedevents/:email", async (req, res) => {
+    app.get("/myjoinedevents/:email", verifyToken, async (req, res) => {
       const email = req.params.email;
       const user = await users.findOne({ email: email });
       const joinedEventIds = (user.joinedEvents || []).map((id) =>
@@ -112,7 +199,7 @@ async function run() {
     // Post
 
     // AllEvents
-    app.post("/events", async (req, res) => {
+    app.post("/events", verifyToken, async (req, res) => {
       const {
         title,
         name,
@@ -138,10 +225,10 @@ async function run() {
       res.send(result);
     });
 
-    // Put
+    // Patch
 
     // SingleEvent Update
-    app.put('/events/:id', async(req, res)=>{
+    app.patch("/events/:id", verifyToken, async (req, res) => {
       const id = req.params.id;
       const filter = { _id: new ObjectId(id) };
       const options = { upsert: true };
@@ -149,28 +236,73 @@ async function run() {
       const newEvent = {
         $set: {
           title: updatedEvent.title,
-          name: updatedEvent.name,
-          email: updatedEvent.email,
           date: updatedEvent.date,
           time: updatedEvent.time,
           location: updatedEvent.location,
           description: updatedEvent.description,
-          attendeeCount: updatedEvent.attendeeCount,
-        }
-      }
+        },
+      };
       const result = await allevents.updateOne(filter, newEvent, options);
       res.send(result);
-    })
+    });
 
-    // User's Joined Events Array Update
+    // User's Joined Events Array Increase
+    app.patch("/usersjoinedincrease/:id", verifyToken, async (req, res) => {
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) };
+      const options = { upsert: true };
+      const eventId = req.body.eventId;
+      const updateJoined = {
+        $addToSet: {
+          joinedEvents: new ObjectId(String(eventId)),
+        },
+      };
+      const result = await users.updateOne(filter, updateJoined, options);
+      res.send(result);
+    });
 
-    // Event's User Count Update
+    // Event's User Count Increase
+    app.patch("/eventscountincrement/:id", verifyToken, async (req, res) => {
+      const eventId = req.params.id;
+      const filter = { _id: new ObjectId(eventId) };
+      const update = { $inc: { attendeeCount: 1 } };
+      const result = await allevents.updateOne(filter, update);
+      res.send(result);
+    });
+
+    // User's Joined Events Array Decrease
+    app.patch("/usersjoineddecrease/:id", verifyToken, async (req, res) => {
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) };
+      const options = { upsert: true };
+      const eventId = req.body.eventId;
+      const updateJoined = {
+        $pull: {
+          joinedEvents: new ObjectId(String(eventId)),
+        },
+      };
+      const result = await users.updateOne(filter, updateJoined, options);
+      res.send(result);
+    });
+
+    // Event's User Count Increase
+    app.patch("/eventscountdecrement/:id", verifyToken, async (req, res) => {
+      const eventId = req.params.id;
+      const filter = { _id: new ObjectId(eventId) };
+      const update = { $inc: { attendeeCount: -1 } };
+      const result = await allevents.updateOne(filter, update);
+      res.send(result);
+    });
 
     // Delete
 
-    // SingleEvent (Created)
-
-    // SingleEvent (Only from Joined List) (Is this a Put operation? cause modifying array here)
+    // SingleEvent (Created by that user)
+    app.delete("/delete-event/:id", verifyToken, async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await allevents.deleteOne(query);
+      res.send(result);
+    });
 
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
