@@ -5,6 +5,7 @@ const jwt = require("jsonwebtoken");
 const cookieParser = require("cookie-parser");
 const bcrypt = require("bcryptjs");
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
+
 const app = express();
 const port = process.env.PORT || 9000;
 
@@ -36,7 +37,8 @@ const verifyToken = async (req, res, next) => {
 };
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
-const client = new MongoClient(process.env.MONGODB_URI, {
+const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_KEY}@cluster0.gr6fcmy.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`
+const client = new MongoClient(uri, {
   serverApi: {
     version: ServerApiVersion.v1,
     strict: true,
@@ -53,9 +55,24 @@ async function run() {
 
     // Api
 
+    app.get("/me", (req, res) => {
+      const token = req.cookies.token;
+
+      if (!token) {
+        return res.status(401).json({ message: "Unauthorized: No token" });
+      }
+
+      try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        res.json({ user: decoded });
+      } catch (err) {
+        res.status(401).json({ message: "Unauthorized: Invalid token" });
+      }
+    });
+
     // Signup
     app.post("/signup", async (req, res) => {
-      const { name, email, password, photoUrl } = req.body;
+      const { name, email, password, photoUrl, joinedEvents } = req.body;
       if (!name || !email || !password) {
         return res
           .status(400)
@@ -79,11 +96,20 @@ async function run() {
         email,
         password: hashedPass,
         photoUrl,
-        joinedEvents: [],
+        joinedEvents,
         createdAt: new Date(),
       };
-      if (newUser) {
-        const token = jwt.sign(email, process.env.JWT_SECRET, {
+      const result = await users.insertOne(newUser);
+      const payload = {
+        _id: result.insertedId,
+        name,
+        email,
+        photoUrl,
+        joinedEvents,
+        createdAt: newUser.createdAt,
+      };
+      if (result.insertedId) {
+        const token = jwt.sign({email}, process.env.JWT_SECRET, {
           expiresIn: "365d",
         });
         res
@@ -92,19 +118,8 @@ async function run() {
             secure: process.env.NODE_ENV === "production",
             sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
           })
-          .send({ success: true });
+          .send({ success: true, user: payload });
       }
-      const result = await users.insertOne(newUser);
-
-      const response = {
-        _id: result.insertedId,
-        name,
-        email,
-        photoUrl,
-        joinedEvents,
-        createdAt: newUser.createdAt,
-      };
-      res.send(response);
     });
 
     // Login
@@ -127,7 +142,7 @@ async function run() {
         joinedEvents: user.joinedEvents,
       };
 
-      const token = jwt.sign(user.email, process.env.JWT_SECRET, {
+      const token = jwt.sign({email: user.email}, process.env.JWT_SECRET, {
         expiresIn: "365d",
       });
       res
@@ -140,7 +155,7 @@ async function run() {
     });
 
     // Logout
-    app.get("/logout", async (req, res) => {
+    app.post("/logout", async (req, res) => {
       try {
         res
           .clearCookie("token", {
@@ -311,15 +326,15 @@ async function run() {
     );
   } finally {
     // Ensures that the client will close when you finish/error
-    await client.close();
+    // await client.close();
   }
 }
 run().catch(console.dir);
 
 app.get("/", (req, res) => {
-  res.send("TheGuide server is running!");
+  res.send("EventGarden server is running!");
 });
 
 app.listen(port, () => {
-  console.log(`TheGuide server is running on port ${port}`);
+  console.log(`EventGarden server is running on port: ${port}`);
 });

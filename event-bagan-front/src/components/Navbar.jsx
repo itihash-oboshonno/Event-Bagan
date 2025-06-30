@@ -1,25 +1,14 @@
-import React, { useContext, useState } from 'react';
-import navlogo from '../assets/eventbagan.webp'
-import { Link, NavLink, useLocation } from 'react-router-dom';
-import AuthContext from '../context/AuthContext';
-import { Toaster } from 'sonner';
+import React, { useContext, useState } from "react";
+import navlogo from "../assets/eventbagan.webp";
+import { Link, NavLink, useLocation } from "react-router-dom";
+import { toast, Toaster } from "sonner";
 import { FaBars } from "react-icons/fa";
+import { useAuth } from "../context/AuthProvider";
 
 const Navbar = () => {
   const location = useLocation();
   const atHomePage = location.pathname === "/";
-  // const { userLogout } = useContext(AuthContext);
-  const currentUser = useState(false);
-
-//   const handleSignOut = () => {
-//     userLogout()
-//       .then(() => {
-//         toast.warning("User Signed Out");
-//       })
-//       .catch((error) => {
-//         toast.error(error.message);
-//       });
-//   }
+  const { currentUser, logout } = useAuth();
 
   const navItems = (
     <>
@@ -28,8 +17,8 @@ const Navbar = () => {
           to="/"
           className={({ isActive }) =>
             isActive
-              ? "font-bold text-dark underline decoration-prim2 decoration-4 lg:underline-offset-8"
-              : "font-medium text-dark hover:text-prim2"
+              ? "font-bold text-dark underline decoration-red-700 decoration-4 lg:underline-offset-8"
+              : "font-medium text-dark hover:text-red-600"
           }
         >
           Home
@@ -40,8 +29,8 @@ const Navbar = () => {
           to="/add-event"
           className={({ isActive }) =>
             isActive
-              ? "font-bold text-dark underline decoration-prim2 decoration-4 lg:underline-offset-8"
-              : "font-medium text-dark hover:text-prim2"
+              ? "font-bold text-dark underline decoration-red-700 decoration-4 lg:underline-offset-8"
+              : "font-medium text-dark hover:text-red-600"
           }
         >
           Add Event
@@ -52,8 +41,8 @@ const Navbar = () => {
           to="/events"
           className={({ isActive }) =>
             isActive
-              ? "font-bold text-dark underline decoration-prim2 decoration-4 lg:underline-offset-8"
-              : "font-medium text-dark hover:text-prim2"
+              ? "font-bold text-dark underline decoration-red-700 decoration-4 lg:underline-offset-8"
+              : "font-medium text-dark hover:text-red-600"
           }
         >
           Events
@@ -64,8 +53,8 @@ const Navbar = () => {
           to="/my-events"
           className={({ isActive }) =>
             isActive
-              ? "font-bold text-dark underline decoration-prim2 decoration-4 lg:underline-offset-8"
-              : "font-medium text-dark hover:text-prim2"
+              ? "font-bold text-dark underline decoration-red-700 decoration-4 lg:underline-offset-8"
+              : "font-medium text-dark hover:text-red-600"
           }
         >
           My Events
@@ -75,15 +64,12 @@ const Navbar = () => {
   );
 
   return (
-    <div className={atHomePage ? "bg-[#f9f8fd]" : "bg-white shadow"}>
-      <nav className="flex justify-between items-center max-w-screen-2xl mx-auto px-4 py-8">
+    <div className={atHomePage ? "bg-[#ffd0d0]" : "bg-white shadow"}>
+      <nav className="flex justify-between items-center max-w-screen-2xl mx-auto px-4 py-4">
         <div>
           <Link to="/" className="flex items-center gap-3">
-            <img
-              className="max-w-32 md:max-w-40 mx-auto"
-              src={navlogo}
-              alt=""
-            />
+            <img className="max-w-8 md:max-w-16 mx-auto" src={navlogo} alt="" />
+            <p className="font-bold text-2xl">Event Bagan</p>
           </Link>
         </div>
         <div>
@@ -95,18 +81,18 @@ const Navbar = () => {
               <div className="p-1 rounded-xl flex items-center gap-1 md:gap-4">
                 <div
                   className="tooltip tooltip-bottom"
-                  data-tip={currentUser.displayName}
+                  data-tip={currentUser?.name}
                 >
                   <img
                     className="rounded-full w-8 h-8 md:w-10 md:h-10 object-cover"
-                    src={currentUser.photoURL}
+                    src={currentUser?.photoUrl}
                     alt=""
                   />
                 </div>
                 <Link to="/">
                   <button
-                    // onClick={handleSignOut}
-                    className="text-white text-sm md:text-base md:font-semibold bg-prim2 px-3 py-2 md:px-6 md:py-2.5 rounded-full hover:shadow-lg hover:bg-primary transition-all"
+                    onClick={logout}
+                    className="text-white text-sm md:text-base md:font-semibold bg-red-700 px-3 py-2 md:px-6 md:py-2.5 rounded-full hover:shadow-lg hover:bg-red-600 transition-all"
                   >
                     Logout
                   </button>
@@ -117,12 +103,12 @@ const Navbar = () => {
             <>
               <div className="flex items-center gap-3">
                 <Link to="/login">
-                  <button className="text-white text-sm md:text-base md:font-semibold bg-prim2 px-4 py-2 md:px-6 md:py-2.5 rounded-full hover:shadow-lg hover:bg-primary transition-all">
+                  <button className="text-black text-sm md:text-base md:font-semibold bg-[#ffbe58] px-4 py-2 md:px-6 md:py-2.5 rounded-full hover:shadow-lg hover:bg-red-600 transition-all">
                     Login
                   </button>
                 </Link>
                 <Link to="/signup">
-                  <button className="text-white text-sm md:text-base md:font-semibold bg-prim2 px-3 py-2 md:px-6 md:py-2.5 rounded-full hover:shadow-lg hover:bg-primary transition-all">
+                  <button className="text-black text-sm md:text-base md:font-semibold bg-[#ffbe58] px-3 py-2 md:px-6 md:py-2.5 rounded-full hover:shadow-lg hover:bg-red-600 transition-all">
                     Sign Up
                   </button>
                 </Link>
