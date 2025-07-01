@@ -16,7 +16,6 @@ const Events = () => {
     try {
       const { data } = await axios(
         `${import.meta.env.VITE_API_URL}/users/${currentUser?.email}`,
-        { withCredentials: true }
       );
       setUser(data);
     } catch (err) {
@@ -55,13 +54,11 @@ const Events = () => {
 
       const usersArrayUp = axios.patch(
         `${import.meta.env.VITE_API_URL}/usersjoinedincrease/${user?._id}`,
-        { eventId: id },
-        { withCredentials: true }
+        { eventId: id }
       );
 
       const eventsCountUp = axios.patch(
-        `${import.meta.env.VITE_API_URL}/eventscountincrement/${id}`,
-        { withCredentials: true }
+        `${import.meta.env.VITE_API_URL}/eventscountincrement/${id}`
       );
 
       await Promise.all([usersArrayUp, eventsCountUp]);

@@ -10,8 +10,7 @@ const MyEvents = () => {
   const myCreatedEvents = async () => {
     try {
       const { data } = await axios(
-        `${import.meta.env.VITE_API_URL}/myevents/${currentUser?.email}`,
-        { withCredentials: true }
+        `${import.meta.env.VITE_API_URL}/myevents/${currentUser?.email}`
       );
       setCreated(data);
     } catch (err) {
@@ -22,8 +21,7 @@ const MyEvents = () => {
   const myJoinedEvents = async () => {
     try {
       const { data } = await axios(
-        `${import.meta.env.VITE_API_URL}/myjoinedevents/${currentUser?.email}`,
-        { withCredentials: true }
+        `${import.meta.env.VITE_API_URL}/myjoinedevents/${currentUser?.email}`
       );
       setJoined(data);
     } catch (err) {

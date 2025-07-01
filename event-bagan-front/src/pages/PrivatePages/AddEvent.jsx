@@ -44,9 +44,7 @@ const AddEvent = () => {
     };
 
     try {
-      const { data } = await axios.post(`${import.meta.env.VITE_API_URL}/events`, newEvent, {
-        withCredentials: true,
-      });
+      const { data } = await axios.post(`${import.meta.env.VITE_API_URL}/events`, newEvent);
       if (data) {
         toast.success("Created Event Successfully.");
         navigate("/events");

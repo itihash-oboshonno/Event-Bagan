@@ -13,29 +13,13 @@ const port = process.env.PORT || 9000;
 // middleware
 app.use(
   cors({
-    origin: ["http://localhost:5173"],
+    origin: ["http://localhost:5173", "https://eventbagan.web.app", "https://eventbagan.firebaseapp.com"],
     credentials: true,
     optionsSuccessStatus: 200,
   })
 );
 app.use(express.json());
 app.use(cookieParser());
-
-const verifyToken = async (req, res, next) => {
-  const token = req.cookies?.token;
-
-  if (!token) {
-    return res.status(401).send({ message: "Unauthorized Access" });
-  }
-  jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
-    if (err) {
-      console.log(err);
-      return res.status(401).send({ message: "Unauthorized Access" });
-    }
-    req.user = decoded;
-    next();
-  });
-};
 
 const getDateRange = (filterType) => {
   const now = new Date();
@@ -84,7 +68,7 @@ const client = new MongoClient(uri, {
 });
 async function run() {
   try {
-    await client.connect();
+    // await client.connect();
 
     const database = client.db("EventGarden");
     const users = database.collection("Users");
@@ -209,7 +193,7 @@ async function run() {
     // Get
 
     // Single UserData
-    app.get("/users/:email", verifyToken, async (req, res) => {
+    app.get("/users/:email", async (req, res) => {
       const email = req.params.email;
       const query = { email: email };
       const result = await users.findOne(query);
@@ -217,7 +201,7 @@ async function run() {
     });
 
     // AllEvents (With Search and Filter)
-    app.get("/allevents", verifyToken, async (req, res) => {
+    app.get("/allevents", async (req, res) => {
       const searchText = req.query.searchText || '';
       const filterType = req.query.filterType || '';
 
@@ -235,7 +219,7 @@ async function run() {
     });
     
     // SingleEvent
-    app.get("/allevents/:id", verifyToken, async (req, res) => {
+    app.get("/allevents/:id", async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const result = await allevents.findOne(query);
@@ -243,7 +227,7 @@ async function run() {
     });
 
     // MyEvents (Created)
-    app.get("/myevents/:email", verifyToken, async (req, res) => {
+    app.get("/myevents/:email", async (req, res) => {
       const email = req.params.email;
       const query = { email: email };
       const result = await allevents
@@ -254,7 +238,7 @@ async function run() {
     });
 
     // MyEvents (Joined)
-    app.get("/myjoinedevents/:email", verifyToken, async (req, res) => {
+    app.get("/myjoinedevents/:email", async (req, res) => {
       const email = req.params.email;
       const user = await users.findOne({ email: email });
       const joinedEventIds = (user.joinedEvents || []).map((id) =>
@@ -269,7 +253,7 @@ async function run() {
     // Post
 
     // AllEvents
-    app.post("/events", verifyToken, async (req, res) => {
+    app.post("/events", async (req, res) => {
       const {
         title,
         name,
@@ -296,7 +280,7 @@ async function run() {
     // Patch
 
     // SingleEvent Update
-    app.patch("/events/:id", verifyToken, async (req, res) => {
+    app.patch("/events/:id", async (req, res) => {
       const id = req.params.id;
       const filter = { _id: new ObjectId(id) };
       const options = { upsert: true };
@@ -314,7 +298,7 @@ async function run() {
     });
 
     // User's Joined Events Array Increase
-    app.patch("/usersjoinedincrease/:id", verifyToken, async (req, res) => {
+    app.patch("/usersjoinedincrease/:id", async (req, res) => {
       const id = req.params.id;
       const filter = { _id: new ObjectId(id) };
       const options = { upsert: true };
@@ -329,7 +313,7 @@ async function run() {
     });
 
     // Event's User Count Increase
-    app.patch("/eventscountincrement/:id", verifyToken, async (req, res) => {
+    app.patch("/eventscountincrement/:id", async (req, res) => {
       const eventId = req.params.id;
       const filter = { _id: new ObjectId(eventId) };
       const update = { $inc: { attendeeCount: 1 } };
@@ -338,7 +322,7 @@ async function run() {
     });
 
     // User's Joined Events Array Decrease
-    app.patch("/usersjoineddecrease/:id", verifyToken, async (req, res) => {
+    app.patch("/usersjoineddecrease/:id", async (req, res) => {
       const id = req.params.id;
       const filter = { _id: new ObjectId(id) };
       const options = { upsert: true };
@@ -353,7 +337,7 @@ async function run() {
     });
 
     // Event's User Count Decrease
-    app.patch("/eventscountdecrement/:id", verifyToken, async (req, res) => {
+    app.patch("/eventscountdecrement/:id", async (req, res) => {
       const eventId = req.params.id;
       const filter = { _id: new ObjectId(eventId) };
       const update = { $inc: { attendeeCount: -1 } };
@@ -364,7 +348,7 @@ async function run() {
     // Delete
 
     // SingleEvent (Created by that user)
-    app.delete("/delete-event/:id", verifyToken, async (req, res) => {
+    app.delete("/delete-event/:id", async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const result = await allevents.deleteOne(query);
@@ -372,10 +356,10 @@ async function run() {
     });
 
     // Send a ping to confirm a successful connection
-    await client.db("admin").command({ ping: 1 });
-    console.log(
-      "Pinged your deployment. You successfully connected to MongoDB!"
-    );
+    // await client.db("admin").command({ ping: 1 });
+    // console.log(
+    //   "Pinged your deployment. You successfully connected to MongoDB!"
+    // );
   } finally {
     // Ensures that the client will close when you finish/error
     // await client.close();
