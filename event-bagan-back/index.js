@@ -219,7 +219,7 @@ async function run() {
     // AllEvents (With Search and Filter)
     app.get("/allevents", verifyToken, async (req, res) => {
       const searchText = req.query.searchText || '';
-      const filterType = req.query.searchText || '';
+      const filterType = req.query.filterType || '';
 
       const dateFilter = getDateRange(filterType);
       const titleFilter = searchText

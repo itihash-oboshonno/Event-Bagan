@@ -25,7 +25,7 @@ const Login = () => {
     }
     const res = await login(email, password);
     if (res.success) {
-      toast.success(`${currentUser?.displayName} logged in successfully!`);
+      toast.success(`${currentUser?.name} logged in successfully!`);
       setLoading(true);
       navigate("/my-events");
       setLoading(false);
