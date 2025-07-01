@@ -79,7 +79,7 @@ const Events = () => {
   if (loading || isLoading) return <Loading></Loading>;
 
   return (
-    <div>
+    <div className="max-w-screen-2xl mx-auto">
       <div className="flex flex-col md:flex-row items-center justify-center gap-4 py-8 max-w-3xl mx-auto">
         {/* search and suggestions */}
         <div className="flex items-center w-full">
