@@ -5,6 +5,7 @@ const jwt = require("jsonwebtoken");
 const cookieParser = require("cookie-parser");
 const bcrypt = require("bcryptjs");
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
+const { startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subWeeks, subMonths } = require('date-fns');
 
 const app = express();
 const port = process.env.PORT || 9000;
@@ -36,8 +37,44 @@ const verifyToken = async (req, res, next) => {
   });
 };
 
+const getDateRange = (filterType) => {
+  const now = new Date();
+
+  switch (filterType) {
+    case 'today':
+      return {
+        $gte: startOfDay(now),
+        $lte: endOfDay(now)
+      };
+    case 'currentWeek':
+      return {
+        $gte: startOfWeek(now, { weekStartsOn: 1 }), // Monday
+        $lte: endOfWeek(now, { weekStartsOn: 1 })
+      };
+    case 'lastWeek':
+      const lastWeek = subWeeks(now, 1);
+      return {
+        $gte: startOfWeek(lastWeek, { weekStartsOn: 1 }),
+        $lte: endOfWeek(lastWeek, { weekStartsOn: 1 })
+      };
+    case 'currentMonth':
+      return {
+        $gte: startOfMonth(now),
+        $lte: endOfMonth(now)
+      };
+    case 'lastMonth':
+      const lastMonth = subMonths(now, 1);
+      return {
+        $gte: startOfMonth(lastMonth),
+        $lte: endOfMonth(lastMonth)
+      };
+    default:
+      return null;
+  }
+};
+
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
-const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_KEY}@cluster0.gr6fcmy.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`
+const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_KEY}@cluster0.gr6fcmy.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
 const client = new MongoClient(uri, {
   serverApi: {
     version: ServerApiVersion.v1,
@@ -109,7 +146,7 @@ async function run() {
         createdAt: newUser.createdAt,
       };
       if (result.insertedId) {
-        const token = jwt.sign({email}, process.env.JWT_SECRET, {
+        const token = jwt.sign({ email, name, photoUrl }, process.env.JWT_SECRET, {
           expiresIn: "365d",
         });
         res
@@ -142,7 +179,7 @@ async function run() {
         joinedEvents: user.joinedEvents,
       };
 
-      const token = jwt.sign({email: user.email}, process.env.JWT_SECRET, {
+      const token = jwt.sign({ email: user.email, name: user.name, photoUrl: user.photoUrl }, process.env.JWT_SECRET, {
         expiresIn: "365d",
       });
       res
@@ -172,13 +209,31 @@ async function run() {
     // Get
 
     // Single UserData
-
-    // AllEvents
-    app.get("/allevents", verifyToken, async (req, res) => {
-      const result = await allevents.find().sort({ createdAt: -1 }).toArray();
+    app.get("/users/:email", verifyToken, async (req, res) => {
+      const email = req.params.email;
+      const query = { email: email };
+      const result = await users.findOne(query);
       res.send(result);
     });
 
+    // AllEvents (With Search and Filter)
+    app.get("/allevents", verifyToken, async (req, res) => {
+      const searchText = req.query.searchText || '';
+      const filterType = req.query.searchText || '';
+
+      const dateFilter = getDateRange(filterType);
+      const titleFilter = searchText
+        ? { title: { $regex: searchText, $options: "i" } }
+        : {};
+
+      const query = {
+        ...titleFilter,
+        ...(dateFilter && { dnt: dateFilter }),
+      };
+      const result = await allevents.find(query).sort({ createdAt: -1 }).toArray();
+      res.send(result);
+    });
+    
     // SingleEvent
     app.get("/allevents/:id", verifyToken, async (req, res) => {
       const id = req.params.id;
@@ -219,8 +274,7 @@ async function run() {
         title,
         name,
         email,
-        date,
-        time,
+        dnt,
         location,
         description,
         attendeeCount,
@@ -229,8 +283,7 @@ async function run() {
         title,
         name,
         email,
-        date,
-        time,
+        dnt: new Date(dnt),
         location,
         description,
         attendeeCount,
@@ -251,8 +304,7 @@ async function run() {
       const newEvent = {
         $set: {
           title: updatedEvent.title,
-          date: updatedEvent.date,
-          time: updatedEvent.time,
+          dnt: updatedEvent.dnt,
           location: updatedEvent.location,
           description: updatedEvent.description,
         },
@@ -300,7 +352,7 @@ async function run() {
       res.send(result);
     });
 
-    // Event's User Count Increase
+    // Event's User Count Decrease
     app.patch("/eventscountdecrement/:id", verifyToken, async (req, res) => {
       const eventId = req.params.id;
       const filter = { _id: new ObjectId(eventId) };
